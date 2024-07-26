@@ -1,0 +1,899 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[18]:
+
+
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
+import pandas as pd
+import math
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import numpy as np
+from scipy.optimize import minimize
+import seaborn as sns
+import tkinter as tk
+from tkinter import Text, Frame
+
+pd.set_option('display.precision', 150)
+
+def show_home():
+    text_area.configure(state=tk.NORMAL)
+    text_area.delete(1.0, tk.END)
+
+    # Menambahkan judul dengan tag 'center' di semua baris
+    text_area.insert(tk.END, "\n\n", "center_big")
+    text_area.insert(tk.END, "PENERAPAN FUZZY TIME SERIES DENGAN MODEL CHEN, LEE, DAN TSAUR\n", "center_big")
+    text_area.insert(tk.END, "UNTUK PEMODELAN HARGA BERAS DI INDONESIA\n\n\n\n\n", "center_big")
+    
+    # Menambahkan writer dengan tag 'center'
+    text_area.insert(tk.END, "Oleh :\n\n", "center")
+    text_area.insert(tk.END, "Alissa Surayya Rahma\n", "center")
+    text_area.insert(tk.END, "24050120140043\n\n\n\n\n\n\n", "center")
+
+    # Menambahkan dosen pembimbing I dan II dalam satu frame grid
+    frame = Frame(text_area)
+    text_area.window_create(tk.END, window=frame)
+
+    dosen1_frame = Frame(frame, relief="solid", bd=1)
+    dosen1_frame.pack(side=tk.LEFT, padx=(20, 10), pady=(10, 10))
+
+    dosen1 = Text(dosen1_frame, wrap=tk.WORD, font=("Arial", 13), width=50, height=6)
+    dosen1.insert(tk.END, "Dosen Pembimbing I\n\nProf. Drs. Mustafid, M.Eng., Ph.D.\nNIP. 24050120140043")
+    dosen1.configure(state=tk.DISABLED)
+    dosen1.tag_configure("center", justify='center')
+    dosen1.tag_add("center", "1.0", "end")
+    dosen1.pack()
+
+    dosen2_frame = Frame(frame, relief="solid", bd=1)
+    dosen2_frame.pack(side=tk.RIGHT, padx=(10, 20), pady=(10, 10))
+
+    dosen2 = Text(dosen2_frame, wrap=tk.WORD, font=("Arial", 13), width=50, height=6)
+    dosen2.insert(tk.END, "Dosen Pembimbing II\n\nDr. Triastuti Wuryandari, S.Si., M.Si.\nNIP. 197109061998032001")
+    dosen2.configure(state=tk.DISABLED)
+    dosen2.tag_configure("center", justify='center')
+    dosen2.tag_add("center", "1.0", "end")
+    dosen2.pack()
+    
+    # Mengatur konfigurasi tag 'center' dan 'center_big'
+    text_area.tag_configure("center", justify='center', font=('Arial', 14, 'bold'))
+    text_area.tag_configure("center_big", justify='center', font=('Arial', 15, 'bold'))
+    text_area.tag_configure("left", justify='left', font=('Arial', 13))
+    text_area.tag_configure("right", justify='right', font=('Arial', 13))
+    text_area.configure(state=tk.DISABLED)
+
+def show_petunjuk():
+    text_area.configure(state=tk.NORMAL)
+    text_area.delete(1.0, tk.END)
+
+    # Menambahkan judul dengan tag 'left' di semua baris
+    text_area.insert(tk.END, "Petunjuk Penggunaan GUI Python\n\n", "left_big")
+    
+    # Menambahkan isi petunjuk dengan tag 'left' di semua baris
+    text_area.insert(tk.END, "1. Siapkan data dalam bentuk .xlsx untuk mengakses semua tombol\n", "left")
+    text_area.insert(tk.END, "2. Klik 'Plot Data' jika ingin mengetahui pola data aktual\n", "left")
+    text_area.insert(tk.END, "3. Klik model Fuzzy Time Series yang ingin dipilih dan masukkan data dalam bentuk .xlsx dengan salah satu kolom dinamakan 'Harga'\n", "left")
+    text_area.insert(tk.END, "4. Klik 'Hapus Plot' jika hasil plot tersebut menutupi hasil\n", "left")
+        
+    # Mengatur konfigurasi tag 
+    text_area.tag_configure("left_big", justify='left', font=('Helvetica', 14, 'bold'))
+    text_area.tag_configure("left", justify='left', font=('Helvetica', 14))
+    text_area.configure(state=tk.DISABLED)
+
+def import_data():
+    file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
+    if file_path:
+        try:
+            df = pd.read_excel(file_path)
+            text_area.configure(state=tk.NORMAL)
+            text_area.delete(1.0, tk.END)
+            text_area.insert(tk.END, df.to_string(index=False, float_format="{:.2f}".format))
+            text_area.configure(state=tk.DISABLED)
+            
+            # Plot data
+            fig, ax = plt.subplots()
+            ax.plot(df['Harga'], label='Harga', marker='o')
+            ax.set_xlabel('Periode')
+            ax.set_ylabel('Harga')
+            ax.set_title('Data Harga Beras')
+            ax.legend()
+            
+            # Display plot
+            canvas = FigureCanvasTkAgg(fig, master=right_frame)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred while loading the data:\n{e}")
+       
+    
+def clear_plot():
+    for widget in right_frame.winfo_children():
+        if isinstance(widget, tk.Canvas):  # Hanya hapus canvas yang berisi plot
+            widget.destroy()
+
+def load_file_chen():
+    clear_plot()
+    file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
+    if file_path:
+        df = pd.read_excel(file_path)
+        column_name = 'Harga'
+        try:
+            hasil = process_data_chen(df, column_name)
+            display_results_chen(hasil)
+            plot_data_chen(df, hasil['forecasts'])
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+def process_data_chen(df, column_name):
+    nilai_maximum = df[column_name].max()
+    nilai_minimum = df[column_name].min()
+
+    def get_data_max_min(df):
+        D1 = 2
+        D2 = 1858.9
+        data_maximum = max(df[column_name]) + D2
+        data_minimum = min(df[column_name]) - D1
+        return data_maximum, data_minimum
+
+    data_maximum, data_minimum = get_data_max_min(df)
+    data_length = len(df)
+    K = (1 + (3.322 * math.log(data_length, 10)))
+    K_rounded_up = round(K / 1) * 1
+    if K_rounded_up < K:
+        K_rounded_up += 1
+
+    def panjang_interval(data_maximum, data_minimum, K_rounded_up):
+        return (data_maximum - data_minimum) / K_rounded_up
+
+    panjang_interval = panjang_interval(data_maximum, data_minimum, K_rounded_up)
+
+    def generate_interval(panjang_interval, K_rounded_up, data_minimum):
+        mtx_interval = []
+        counter = data_minimum
+        for i in range(int(K_rounded_up)):
+            lower_bound = counter
+            upper_bound = lower_bound + panjang_interval
+            mtx_interval.append((int(lower_bound), int(upper_bound)))
+            counter = upper_bound
+        return mtx_interval
+
+    mtx_interval = generate_interval(panjang_interval, K_rounded_up, data_minimum)
+
+    categories = {
+        1: "sangat murah",
+        2: "murah",
+        3: "agak murah",
+        4: "normal",
+        5: "agak mahal",
+        6: "mahal",
+        7: "sangat mahal"
+    }
+
+    def mid_point(mtx_interval):
+        mid_points = []
+        for interval in mtx_interval:
+            mid_point = sum(interval) / 2
+            mid_points.append(mid_point)
+        return mid_points
+
+    mid_points = mid_point(mtx_interval)
+
+    def fuzzify(df, mtx_interval, data_length):
+        mtx_fuzzify = []
+        for i in range(data_length):
+            curr_data = (df[column_name][i])
+            for j in range(len(mtx_interval)):
+                if j == 0:
+                    if (mtx_interval[j][0] <= curr_data) and (mtx_interval[j][1] >= curr_data):
+                        mtx_fuzzify.append([i + 1, j + 1])
+                else:
+                    if (mtx_interval[j][0] < curr_data) and (mtx_interval[j][1] >= curr_data):
+                        mtx_fuzzify.append([i + 1, j + 1])
+        return mtx_fuzzify
+
+    fuzzyfikasi = fuzzify(df, mtx_interval, data_length)
+
+    def flr(mtx_fuzzify):
+        mtx_flr = []
+        for i in range(len(mtx_fuzzify) - 1):
+            mtx_flr.append((i + 2, mtx_fuzzify[i][1], mtx_fuzzify[i + 1][1]))
+        return mtx_flr
+
+    mtx_flr = flr(fuzzyfikasi)
+
+    def flrg(mtx_flr, K_rounded_up):
+        int_K_rounded_up = int(K_rounded_up)
+        mtx_flrg = [[] for _ in range(int_K_rounded_up)]
+        for i in range(len(mtx_flr)):
+            temp = mtx_flr[i][1] - 1
+            val = mtx_flr[i][2]
+            if 0 <= temp < int_K_rounded_up:
+                if val not in mtx_flrg[temp]:
+                    mtx_flrg[temp].append(val)
+        return mtx_flrg
+
+    mtx_flrg = flrg(mtx_flr, K_rounded_up)
+
+    def forecast_next_period(mtx_fuzzify, mtx_flrg, mid_points):
+        if len(mtx_fuzzify) < 2:
+            raise ValueError("Not enough data to make a forecast for the next period.")
+        last_period_fuzzify = mtx_fuzzify[-1][1]
+        previous_period_fuzzify = mtx_fuzzify[-2][1]
+        forecast_values = mtx_flrg[previous_period_fuzzify - 1]
+        forecast_sum = sum(mid_points[val - 1] for val in forecast_values)
+        forecast = forecast_sum / len(forecast_values) if len(forecast_values) > 0 else 0
+        return forecast
+
+    def forecast_all_periods(mtx_fuzzify, mtx_flrg, mid_points):
+        forecasts = []
+        for i in range(len(mtx_fuzzify)):
+            if i == 0:
+                forecasts.append(None)
+            else:
+                previous_period_fuzzify = mtx_fuzzify[i - 1][1]
+                forecast_values = mtx_flrg[previous_period_fuzzify - 1]
+                forecast_sum = sum(mid_points[val - 1] for val in forecast_values)
+                forecast = forecast_sum / len(forecast_values) if len(forecast_values) > 0 else 0
+                forecasts.append(forecast)
+        return forecasts
+
+    forecasts = forecast_all_periods(fuzzyfikasi, mtx_flrg, mid_points)
+    next_forecast = forecast_next_period(fuzzyfikasi, mtx_flrg, mid_points)
+
+    def calculate_mape(actual, forecast):
+        if len(actual) != len(forecast):
+            raise ValueError("The length of actual and forecast lists must be the same")
+        mape = []
+        for a, f in zip(actual, forecast):
+            if a != 0:
+                mape.append(abs((a - f) / a) * 100)
+        return mape
+
+    actual = df[column_name].tolist()
+    mape_values = calculate_mape(actual[1:], [f for f in forecasts[1:] if f is not None])
+    overall_mape = sum(mape_values) / len(mape_values)
+
+    hasil = {
+        "intervals": mtx_interval,
+        "categories": categories,
+        "mid_points": mid_points,
+        "fuzzyfikasi": fuzzyfikasi,
+        "flr": mtx_flr,
+        "flrg": mtx_flrg,
+        "forecasts": forecasts,
+        "next_forecast": next_forecast,
+        "mape_values": mape_values,
+        "overall_mape": overall_mape
+    }
+    return hasil
+
+def display_results_chen(hasil):
+    text_area.configure(state=tk.NORMAL)
+    text_area.delete(1.0, tk.END)
+
+    text_area.insert(tk.END, "Intervals:\n")
+    for i, (lower, upper) in enumerate(hasil["intervals"], start=1):
+        text_area.insert(tk.END, f"u{i} = ({lower} : {upper})\n")
+
+    text_area.insert(tk.END, "\nCategories:\n")
+    for i, (lower, upper) in enumerate(hasil["intervals"], start=1):
+        category = hasil["categories"].get(i, "undefined")
+        text_area.insert(tk.END, f"u{i} = ({lower} : {upper}) -> {category}\n")
+
+    text_area.insert(tk.END, "\nMid Points:\n")
+    for i, mid in enumerate(hasil["mid_points"], start=1):
+        text_area.insert(tk.END, f"m{i} = {mid}\n")
+
+    text_area.insert(tk.END, "\nFuzzyfikasi:\n")
+    for i, (index, first) in enumerate(hasil["fuzzyfikasi"], start=1):
+        text_area.insert(tk.END, f"Period {index}  memiliki fuzzyfikasi A{first}\n")
+
+    text_area.insert(tk.END, "\nFLR:\n")
+    for i, (index, first, second) in enumerate(hasil["flr"], start=1):
+        text_area.insert(tk.END, f"Period {index} = (A{first} -> A{second})\n")
+
+    text_area.insert(tk.END, "\nFLRG:\n")
+    for i, row in enumerate(hasil["flrg"], start=1):
+        text_area.insert(tk.END, f"A{i} -> {row}\n")
+
+    text_area.insert(tk.END, "\nForecasts:\n")
+    for i, forecast in enumerate(hasil["forecasts"], start=1):
+        text_area.insert(tk.END, f"Period {i}: {forecast}\n")
+
+    text_area.insert(tk.END, f"\nNext Period Forecast: {hasil['next_forecast']}\n")
+    text_area.insert(tk.END, "\nMAPE Values for each period:\n")
+    for i, mape in enumerate(hasil["mape_values"], start=2):  # Mulai dari 2 karena periode pertama tidak dihitung
+        text_area.insert(tk.END, f"Period {i}: {mape:.2f}%\n")
+    text_area.insert(tk.END, f"Nilai MAPE: {hasil['overall_mape']}\n")
+
+    text_area.configure(state=tk.DISABLED)
+
+def plot_data_chen(df, forecasts):
+    fig, ax = plt.subplots()
+    ax.plot(df['Harga'], label='Actual')
+    ax.plot(range(1, len(forecasts)+1), forecasts, label='Forecast', linestyle='--')
+    ax.set_title('FTS Chen')
+    ax.set_xlabel('Period')
+    ax.set_ylabel('Harga')
+    ax.legend()
+
+    canvas = FigureCanvasTkAgg(fig, master=right_frame)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+def load_file_lee():
+    clear_plot()
+    file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
+    if file_path:
+        df = pd.read_excel(file_path)
+        column_name = 'Harga'
+        try:
+            hasil = process_data_lee(df, column_name)  # Menggunakan process_data_lee
+            display_results_lee(hasil)  # Menggunakan display_results_lee
+            plot_data_lee(df, hasil['forecasts'])  # Menggunakan plot_data_lee
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+            
+def process_data_lee(df, column_name):
+    nilai_maximum = df['Harga'].max()
+    nilai_minimum = df['Harga'].min()
+
+    def get_data_max_min(df):
+        D1 = 2
+        D2 = 1858.9
+        data_maximum = max(df['Harga']) + D2
+        data_minimum = min(df['Harga']) - D1
+        return data_maximum, data_minimum
+
+    data_maximum, data_minimum = get_data_max_min(df)
+    data_length = len(df)
+    K = (1 + (3.322 * math.log(data_length, 10)))
+    K_rounded_up = round(K / 1) * 1
+    if K_rounded_up < K:
+        K_rounded_up += 1
+
+    def panjang_interval(data_maximum, data_minimum, K_rounded_up):
+        return (data_maximum - data_minimum) / K_rounded_up
+
+    panjang_interval = panjang_interval(data_maximum, data_minimum, K_rounded_up)
+
+    def generate_interval(panjang_interval, K_rounded_up, data_minimum):
+        mtx_interval = []
+        counter = data_minimum
+        for i in range(int(K_rounded_up)):
+            lower_bound = counter
+            upper_bound = lower_bound + panjang_interval
+            mtx_interval.append((int(lower_bound), int(upper_bound)))
+            counter = upper_bound
+        return mtx_interval
+
+    mtx_interval = generate_interval(panjang_interval, K_rounded_up, data_minimum)
+
+    categories = {
+        1: "sangat murah",
+        2: "murah",
+        3: "agak murah",
+        4: "normal",
+        5: "agak mahal",
+        6: "mahal",
+        7: "sangat mahal"
+    }
+
+    def mid_point(mtx_interval):
+        mid_points = []
+        for interval in mtx_interval:
+            mid_point = sum(interval) / 2
+            mid_points.append(mid_point)
+        return mid_points
+
+    mid_points = mid_point(mtx_interval)
+
+    def fuzzify(df, mtx_interval, data_length):
+        mtx_fuzzify = []
+        for i in range(data_length):
+            curr_data = (df[column_name][i])
+            for j in range(len(mtx_interval)):
+                if j == 0:
+                    if (mtx_interval[j][0] <= curr_data) and (mtx_interval[j][1] >= curr_data):
+                        mtx_fuzzify.append([i + 1, j + 1])
+                else:
+                    if (mtx_interval[j][0] < curr_data) and (mtx_interval[j][1] >= curr_data):
+                        mtx_fuzzify.append([i + 1, j + 1])
+        return mtx_fuzzify
+
+    fuzzyfikasi = fuzzify(df, mtx_interval, data_length)
+
+    def flr(mtx_fuzzify):
+        mtx_flr = []
+        for i in range(len(mtx_fuzzify) - 1):
+            mtx_flr.append((i + 2, mtx_fuzzify[i][1], mtx_fuzzify[i + 1][1]))
+        return mtx_flr
+
+    mtx_flr = flr(fuzzyfikasi)
+
+    def flrg(mtx_flr, K_rounded_up):
+        int_K_rounded_up = int(K_rounded_up)
+        mtx_flrg = [[] for _ in range(int_K_rounded_up)]
+        for i in range(len(mtx_flr)):
+            temp = mtx_flr[i][1] - 1  # Kurangi 1 dari temp agar sesuai dengan rentang indeks
+            if 0 <= temp < int_K_rounded_up:
+                mtx_flrg[temp].append(mtx_flr[i][2])
+            else:
+                raise IndexError(f"Index {temp} out of range for mtx_flrg with size {int_K_rounded_up}")
+        return mtx_flrg
+
+    # Memanggil fungsi flrg
+    mtx_flrg = flrg(mtx_flr, K_rounded_up)
+    
+    def calculate_flrg_matrix(mtx_flr, K_rounded_up):
+        flrg_matrix = [[0 for _ in range(K_rounded_up)] for _ in range(K_rounded_up)]
+        for i in range(len(mtx_flr)):
+            row = mtx_flr[i][1] - 1
+            col = mtx_flr[i][2] - 1
+            flrg_matrix[row][col] += 1
+        return flrg_matrix
+
+    # Contoh penggunaan
+    flrg_matrix = calculate_flrg_matrix(mtx_flr, K_rounded_up)
+    
+    def forecast_next_period(mtx_fuzzify, mtx_flrg, mid_points):
+        if len(mtx_fuzzify) < 2:
+            raise ValueError("Not enough data to make a forecast for the next period.")
+
+        last_period_fuzzify = mtx_fuzzify[-1][1]  # Mendapatkan hasil fuzzify dari periode terakhir
+        previous_period_fuzzify = mtx_fuzzify[-2][1]  # Mendapatkan hasil fuzzify dari periode sebelumnya
+
+        if previous_period_fuzzify > len(mtx_flrg):
+            raise ValueError(f"Index {previous_period_fuzzify} out of range for mtx_flrg")
+
+        forecast_values = mtx_flrg[previous_period_fuzzify - 1]  # Mengambil nilai peramalan dari hasil mtx_flrg periode sebelumnya
+
+        # Menghitung rata-rata dari nilai tengah
+        forecast_sum = sum(mid_points[val - 1] for val in forecast_values)
+        forecast = forecast_sum / len(forecast_values) if len(forecast_values) > 0 else 0
+
+        return forecast
+
+    def forecast_all_periods(mtx_fuzzify, mtx_flrg, mid_points):
+        forecasts_lee = []
+        for i in range(len(mtx_fuzzify)):
+            if i == 0:
+                forecasts_lee.append(None)  # Tidak ada peramalan untuk periode pertama
+            else:
+                previous_period_fuzzify = mtx_fuzzify[i - 1][1]  # Mengambil hasil fuzzify periode sebelumnya
+                forecast_values = mtx_flrg[previous_period_fuzzify - 1]  # Mengambil nilai peramalan dari hasil mtx_flrg periode sebelumnya
+                forecast_sum = sum(mid_points[val - 1] for val in forecast_values)
+                forecast = forecast_sum / len(forecast_values) if len(forecast_values) > 0 else 0
+                forecasts_lee.append(forecast)
+        return forecasts_lee
+
+    # Peramalan untuk semua periode
+    forecasts_lee = forecast_all_periods(fuzzyfikasi, mtx_flrg, mid_points)
+
+    # Peramalan untuk periode berikutnya
+    next_forecast = forecast_next_period(fuzzyfikasi, mtx_flrg, mid_points)
+
+    def calculate_mape(actual, forecast):
+        if len(actual) != len(forecast):
+            raise ValueError("The length of actual and forecast lists must be the same")
+        mape = []
+        for a, f in zip(actual, forecast):
+            if a != 0:
+                mape.append(abs((a - f) / a) * 100)
+        return mape
+
+    actual = df[column_name].tolist()
+    mape_values = calculate_mape(actual[1:], [f for f in forecasts_lee[1:] if f is not None])
+    overall_mape = sum(mape_values) / len(mape_values)
+
+    hasil = {
+        "intervals": mtx_interval,
+        "categories": categories,
+        "mid_points": mid_points,
+        "fuzzyfikasi": fuzzyfikasi,
+        "flr": mtx_flr,
+        "flrg": mtx_flrg,
+        "forecasts": forecasts_lee,
+        "next_forecast": next_forecast,
+        "mape_values": mape_values,
+        "overall_mape": overall_mape
+    }
+    return hasil
+
+def display_results_lee(hasil):
+    text_area.configure(state=tk.NORMAL)
+    text_area.delete(1.0, tk.END)
+
+    text_area.insert(tk.END, "Intervals:\n")
+    for i, (lower, upper) in enumerate(hasil["intervals"], start=1):
+        text_area.insert(tk.END, f"u{i} = ({lower} : {upper})\n")
+
+    text_area.insert(tk.END, "\nCategories:\n")
+    for i, (lower, upper) in enumerate(hasil["intervals"], start=1):
+        category = hasil["categories"].get(i, "undefined")
+        text_area.insert(tk.END, f"u{i} = ({lower} : {upper}) -> {category}\n")
+
+    text_area.insert(tk.END, "\nMid Points:\n")
+    for i, mid in enumerate(hasil["mid_points"], start=1):
+        text_area.insert(tk.END, f"m{i} = {mid}\n")
+
+    text_area.insert(tk.END, "\nFuzzyfikasi:\n")
+    for i, (index, first) in enumerate(hasil["fuzzyfikasi"], start=1):
+        text_area.insert(tk.END, f"Periode {index} memiliki fuzzyfikasi A{first}\n")
+
+    text_area.insert(tk.END, "\nFLR:\n")
+    for i, (index, first, second) in enumerate(hasil["flr"], start=1):
+        text_area.insert(tk.END, f"Period {index} = (A{first} -> A{second})\n")
+
+    text_area.insert(tk.END, "\nFLRG:\n")
+    for i, row in enumerate(hasil["flrg"], start=1):
+        text_area.insert(tk.END, f"A{i} -> {row})\n")
+
+    text_area.insert(tk.END, "\nForecasts:\n")
+    for i, forecast in enumerate(hasil["forecasts"], start=1):
+        text_area.insert(tk.END, f"Period {i}: {forecast}\n")
+
+    text_area.insert(tk.END, f"\nNext Period Forecast: {hasil['next_forecast']}\n")
+    text_area.insert(tk.END, "\nMAPE Values for each period:\n")
+    for i, mape in enumerate(hasil["mape_values"], start=2):  # Mulai dari 2 karena periode pertama tidak dihitung
+        text_area.insert(tk.END, f"Period {i}: {mape:.2f}%\n")
+    text_area.insert(tk.END, f"Nilai MAPE: {hasil['overall_mape']}\n")
+
+    text_area.configure(state=tk.DISABLED)
+
+def plot_data_lee(df, forecasts_lee):
+    fig, ax = plt.subplots()
+    ax.plot(df['Harga'], label='Actual')
+    
+    # Filter nilai None dari forecasts_lee
+    filtered_forecasts_lee = [f for f in forecasts_lee if f is not None]
+    
+    # Menggunakan panjang filtered_forecasts_lee
+    ax.plot(range(1, len(filtered_forecasts_lee)+1), filtered_forecasts_lee, label='Forecast', linestyle='--')
+    ax.set_title('FTS Lee')  # Mengatur judul grafik sesuai dengan FTS Lee
+    ax.set_xlabel('Period')
+    ax.set_ylabel('Harga')
+    ax.legend()
+
+    canvas = FigureCanvasTkAgg(fig, master=right_frame)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+def load_file_tsaur():
+    clear_plot()
+    file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
+    if file_path:
+        df = pd.read_excel(file_path)
+        column_name = 'Harga'
+        try:
+            hasil = process_data_tsaur(df, column_name)
+            display_results_tsaur(hasil)
+            plot_forecasts(df[column_name].values, hasil['forecasts'], hasil['mtx_final_forecast'])
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+def process_data_tsaur(df, column_name):
+    nilai_maximum = df['Harga'].max()
+    nilai_minimum = df['Harga'].min()
+
+    def get_data_max_min(df):
+        D1 = 2
+        D2 = 1858.9
+        data_maximum = max(df['Harga']) + D2
+        data_minimum = min(df['Harga']) - D1
+        return data_maximum, data_minimum
+
+    data_maximum, data_minimum = get_data_max_min(df)
+    data_length = len(df)
+    K = (1 + (3.322*math.log(data_length, 10)))
+    K_rounded_up = round(K/1)*1
+    if (K_rounded_up < K): K_rounded_up += 1
+
+    def panjang_interval(data_maximum, data_minimum, K_rounded_up):
+        return (data_maximum - data_minimum) / K_rounded_up
+
+    panjang_interval = panjang_interval(data_maximum, data_minimum, K_rounded_up)
+
+    def generate_interval(panjang_interval, K_rounded_up, data_minimum):
+        mtx_interval = []
+        counter = data_minimum
+        for i in range(int(K_rounded_up)):
+            lower_bound = counter
+            upper_bound = lower_bound + panjang_interval
+            mtx_interval.append((int(lower_bound), int(upper_bound)))
+            counter = upper_bound
+        return mtx_interval
+
+    mtx_interval = generate_interval(panjang_interval, K_rounded_up, data_minimum)
+
+    categories = {
+        1: "sangat murah",
+        2: "murah",
+        3: "agak murah",
+        4: "normal",
+        5: "agak mahal",
+        6: "mahal",
+        7: "sangat mahal"
+    }
+
+    def mid_point(mtx_interval):
+        mid_points = []
+        for interval in mtx_interval:
+            mid_point = sum(interval) / 2
+            mid_points.append(mid_point)
+        return mid_points
+
+    mid_points = mid_point(mtx_interval)
+
+    def fuzzify(df, mtx_interval):
+        mtx_fuzzify = []
+        for i in range(len(df)):
+            curr_data = df['Harga'][i]
+            for j in range(len(mtx_interval)):
+                if j == 0:
+                    if mtx_interval[j][0] <= curr_data <= mtx_interval[j][1]:
+                        mtx_fuzzify.append([i + 1, j + 1])
+                else:
+                    if mtx_interval[j][0] < curr_data <= mtx_interval[j][1]:
+                        mtx_fuzzify.append([i + 1, j + 1])
+        return mtx_fuzzify
+
+    mtx_fuzzify = fuzzify(df, mtx_interval)
+
+    def flr(mtx_fuzzify):
+        mtx_flr = []
+        for i in range(len(mtx_fuzzify) - 1):
+            mtx_flr.append((i + 2, mtx_fuzzify[i][1], mtx_fuzzify[i + 1][1]))
+        return mtx_flr
+
+    mtx_flr = flr(mtx_fuzzify)
+
+    def flrg(mtx_flr, K_rounded_up):
+        mtx_flrg = [[] for _ in range(int(K_rounded_up))]
+        for i in range(len(mtx_flr)):
+            temp = mtx_flr[i][1] - 1  # Kurangi 1 dari temp agar sesuai dengan rentang indeks
+            if 0 <= temp < int(K_rounded_up):
+                mtx_flrg[temp].append(mtx_flr[i][2])
+            else:
+                raise IndexError(f"Index {temp} out of range for mtx_flrg with size {int(K_rounded_up)}")
+        return mtx_flrg
+
+    mtx_flrg = flrg(mtx_flr, K_rounded_up)
+
+    def generate_big_mtx(flrg_matrix):
+        flrg_matrix = np.array(flrg_matrix)
+        row_sums = np.sum(flrg_matrix, axis=1)
+        prob_array = np.zeros_like(flrg_matrix, dtype=float)
+
+        for i, row_sum in enumerate(row_sums):
+            if row_sum != 0:
+                prob_array[i] = flrg_matrix[i] / row_sum
+            else:
+                prob_array[i] = np.zeros(flrg_matrix.shape[1])  # Atur baris dengan nilai nol
+
+        np.set_printoptions(precision=3, suppress=True)
+        return prob_array
+
+    # Membuat matriks dari jumlah FLRG
+    flrg_matrix = [[0 for _ in range(K_rounded_up)] for _ in range(K_rounded_up)]
+    for index, first, second in mtx_flr:
+        flrg_matrix[first - 1][second - 1] += 1
+
+    big_mtx = generate_big_mtx(flrg_matrix)
+
+    def forecast_next_period(mtx_fuzzify, mid_points, big_mtx, last_actual):
+        last_period_fuzzify = mtx_fuzzify[-1][1]  # Mendapatkan hasil mtx_fuzzify dari periode terakhir
+        prob_row = big_mtx[last_period_fuzzify - 1]
+
+        if np.max(prob_row) == 1:
+            forecast = mid_points[np.argmax(prob_row)]
+        else:
+            forecast_sum = 0
+            for i, prob in enumerate(prob_row):
+                if i == last_period_fuzzify - 1:
+                    forecast_sum += last_actual * prob
+                else:
+                    forecast_sum += mid_points[i] * prob
+            forecast = forecast_sum
+
+        return forecast
+
+    def forecast_all_periods(mtx_fuzzify, mid_points, big_mtx, actual_data):
+        forecasts = []
+        for i in range(1, len(mtx_fuzzify)):
+            last_actual = actual_data[i - 1]  # Menggunakan data aktual periode sebelumnya
+            forecast = forecast_next_period(mtx_fuzzify[:i], mid_points, big_mtx, last_actual)
+            forecasts.append(forecast)
+        return forecasts
+
+    def mean_absolute_percentage_error(y_true, y_pred):
+        y_true, y_pred = np.array(y_true), np.array(y_pred)
+        return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+
+    mtx_fuzzify = fuzzify(df, mtx_interval)
+    actual_data = df['Harga'].values
+    forecasts = forecast_all_periods(mtx_fuzzify, mid_points, big_mtx, actual_data)
+
+    def generate_mtx_dt(mtx_flr, panjang_interval):
+        mtx_dt = []
+        for i in range(len(mtx_flr)):
+            elem = mtx_flr[i]
+            selisih = elem[2] - elem[1]
+            if selisih == 0:
+                mtx_dt.append(0)
+            else:
+                mtx_dt.append(panjang_interval / 2 * selisih)
+        return mtx_dt
+
+    def generate_mtx_final_forecast(df, forecasts, mtx_dt):
+        mtx = [None]  # Periode pertama tidak memiliki peramalan
+        for i in range(len(forecasts)):
+            temp = abs(forecasts[i] + mtx_dt[i])
+            mtx.append(temp)
+        return mtx
+    
+    
+    # Mengambil data aktual terakhir
+    last_actual = df['Harga'].values[-1]
+    # Mengambil hasil fuzzifikasi data terakhir
+    last_fuzzify = mtx_fuzzify[-1][1]
+    # Melakukan peramalan periode berikutnya
+    next_forecast = forecast_next_period(mtx_fuzzify, mid_points, big_mtx, last_actual)
+    
+    nilai_penyesuaian = generate_mtx_dt(mtx_flr, panjang_interval)
+    mtx_final_forecast = generate_mtx_final_forecast(df, forecasts, nilai_penyesuaian)
+    mape_values = [mean_absolute_percentage_error([actual_data[i]], [mtx_final_forecast[i + 1]]) for i in range(len(actual_data) - 1)]
+    overall_mape = mean_absolute_percentage_error(actual_data[1:], mtx_final_forecast[1:])
+
+    hasil = {
+        "intervals": mtx_interval,
+        "categories": categories,
+        "mid_points": mid_points,
+        "fuzzyfikasi": mtx_fuzzify,
+        "flr": mtx_flr,
+        "flrg": mtx_flrg,
+        "big_mtx": big_mtx,
+        "forecasts": forecasts,
+        "next_forecast": next_forecast,
+        "nilai_penyesuaian": nilai_penyesuaian,
+        "mtx_final_forecast": mtx_final_forecast,
+        "mape_values": mape_values,
+        "overall_mape": overall_mape
+    }
+
+    return hasil
+
+def display_results_tsaur(hasil):
+    
+    text_area.configure(state=tk.NORMAL)
+    text_area.delete(1.0, tk.END)
+
+    text_area.insert(tk.END, "Intervals:\n")
+    for i, (lower, upper) in enumerate(hasil["intervals"], start=1):
+        text_area.insert(tk.END, f"u{i} = ({lower} : {upper})\n")
+
+    text_area.insert(tk.END, "\nCategories:\n")
+    for i, (lower, upper) in enumerate(hasil["intervals"], start=1):
+        category = hasil["categories"].get(i, "undefined")
+        text_area.insert(tk.END, f"u{i} = ({lower} : {upper}) -> {category}\n")
+
+    text_area.insert(tk.END, "\nMid Points:\n")
+    for i, mid in enumerate(hasil["mid_points"], start=1):
+        text_area.insert(tk.END, f"m{i} = {mid}\n")
+
+    text_area.insert(tk.END, "\nFuzzyfikasi:\n")
+    for i, (index, first) in enumerate(hasil["fuzzyfikasi"], start=1):
+        text_area.insert(tk.END, f"t={i} memiliki fuzzyfikasi (A{first})\n")
+
+    text_area.insert(tk.END, "\nFLR Ai->Ap:\n")
+    for i, (index, first, second) in enumerate(hasil["flr"], start=1):
+        text_area.insert(tk.END, f"t={index}: (A{first} -> A{second})\n")
+
+    text_area.insert(tk.END, "\nFLRG Ai:\n")
+    for i, group in enumerate(hasil["flrg"], start=1):
+        text_area.insert(tk.END, f"A{i} -> A{group}\n")
+
+    text_area.insert(tk.END, "\nMatriks (Probabilities):\n")
+    for row in hasil["big_mtx"]:
+        text_area.insert(tk.END, " ".join(f"{val:.3f}" for val in row) + "\n")
+
+    text_area.insert(tk.END, "\nPeramalan Awal:\n")
+    for i, forecast in enumerate(hasil["forecasts"]):
+        if forecast is not None:
+            text_area.insert(tk.END, f"Peramalan Awal {i + 2}: {forecast}\n")
+        else:
+            text_area.insert(tk.END, f"No forecast available for period {i + 2}\n")
+
+    text_area.insert(tk.END, "\nPenyesuaian Nilai:\n")
+    for i, nilai in enumerate(hasil["nilai_penyesuaian"], start=2):  # Mulai dari 2 karena periode pertama kosong
+        text_area.insert(tk.END, f"Nilai penyesuaian t={i} adalah {nilai}\n")
+
+    text_area.insert(tk.END, "\nPeramalan Akhir:\n")
+    for i, forecast in enumerate(hasil["mtx_final_forecast"][1:], start=2):  # Mulai dari 1 karena periode pertama kosong
+        text_area.insert(tk.END, f"Peramalan Akhir Periode {i}: {forecast}\n")
+
+    text_area.insert(tk.END, f"Peramalan periode selanjutnya: {hasil['next_forecast']}\n")
+
+    text_area.insert(tk.END, "\nMAPE Values for each period:\n")
+    for i, mape in enumerate(hasil["mape_values"], start=2):  # Mulai dari 2 karena periode pertama tidak dihitung
+        text_area.insert(tk.END, f"Period {i}: {mape:.2f}%\n")
+
+    text_area.insert(tk.END, f"\nAverage MAPE: {hasil['overall_mape']:.2f}%\n")
+    text_area.configure(state=tk.DISABLED)
+
+
+def plot_forecasts(actual_data, forecasts, mtx_final_forecast):
+    periods = range(1, len(actual_data) + 1)
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    # Plot data aktual
+    ax.plot(periods, actual_data, label='Data Aktual', marker='o')
+
+    # Plot hasil peramalan
+    forecast_periods = range(2, len(forecasts) + 2)  # Peramalan mulai dari periode ke-2
+    ax.plot(forecast_periods, forecasts, label='Peramalan Awal', marker='x')
+
+    # Plot hasil peramalan akhir
+    final_forecast_periods = range(1, len(mtx_final_forecast))  # Mengabaikan elemen pertama (None)
+    ax.plot(final_forecast_periods, mtx_final_forecast[1:], label='Peramalan Akhir', marker='s')
+
+    ax.set_xlabel('Periode')
+    ax.set_ylabel('Nilai')
+    ax.set_title('FTS Tsaur')
+    ax.legend()
+    ax.grid(True)
+
+    canvas = FigureCanvasTkAgg(fig, master=right_frame)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+
+
+root = tk.Tk()
+root.title("Tugas Akhir_Alissa Surayya Rahma_Penerapan Fuzzy Time Series dengan Model Chen, Lee, dan Tsaur")
+root.geometry("1200x800")
+
+left_frame = tk.Frame(root)
+left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
+
+title_label = tk.Label(left_frame, text="GUI Fuzzy Time Series (FTS)", font=("Helvetica", 16, 'bold'))
+title_label.pack(pady=10)
+
+home_button = tk.Button(left_frame, text="Home", font=("Helvetica", 16), command=show_home, width=20, height=2, bg="#ADD8E6", borderwidth=1, relief="solid")
+home_button.pack(pady=5)
+
+petunjuk_button = tk.Button(left_frame, text="Petunjuk", font=("Helvetica", 16), command=show_petunjuk, width=20, height=2, bg="#ADD8E6", borderwidth=1, relief="solid")
+petunjuk_button.pack(pady=5)
+
+import_button = tk.Button(left_frame, text="Pola Data Aktual", font=("Helvetica", 16), command=import_data, width=20, height=2, bg="#ADD8E6", borderwidth=1, relief="solid")
+import_button.pack(pady=5)
+
+chen_button = tk.Button(left_frame, text="Fuzzy Time Series Chen", font=("Helvetica", 16), command=load_file_chen, width=20, height=2, bg="#ADD8E6", borderwidth=1, relief="solid")
+chen_button.pack(pady=5)
+
+lee_button = tk.Button(left_frame, text="Fuzzy Time Series Lee", font=("Helvetica", 16), command=load_file_lee, width=20, height=2, bg="#ADD8E6", borderwidth=1, relief="solid")
+lee_button.pack(pady=5)
+
+tsaur_button = tk.Button(left_frame, text="Fuzzy Time Series Tsaur", font=("Helvetica", 16), command=load_file_tsaur, width=20, height=2, bg="#ADD8E6", borderwidth=1, relief="solid")
+tsaur_button.pack(pady=5)
+
+clear_button = tk.Button(left_frame, text="Hapus Plot", font=("Helvetica", 16), command=clear_plot, width=20, height=2, bg="pink", borderwidth=1, relief="solid")
+clear_button.pack(pady=5)
+
+right_frame = tk.Frame(root)
+right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+text_area = tk.Text(right_frame, wrap=tk.WORD, state=tk.DISABLED)
+text_area.pack(fill=tk.BOTH, expand=True)
+
+root.mainloop()
+
+
+# In[ ]:
+
+
+
+
