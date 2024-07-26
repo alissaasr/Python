@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[ ]:
+
+
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import pandas as pd
@@ -209,3 +215,5 @@ frame_plot.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
 
 root.mainloop()
 
+
+# In[ ]:
